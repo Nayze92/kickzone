@@ -1,0 +1,8 @@
+images/
+*.py
+scraped_all.json
+scraped_progress.json
+multi_images.json
+__pycache__/
+*.pyc
+.env
