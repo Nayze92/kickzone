@@ -2112,6 +2112,14 @@
         </div>
         <div class="cart-footer" id="cartFooter" style="display:none;">
             <div class="cart-total">
+                <span class="cart-total-label">Sous-total</span>
+                <span class="cart-total-price" id="cartSubtotal">0,00 &euro;</span>
+            </div>
+            <div class="cart-total" id="cartShippingRow" style="font-size:13px;opacity:0.8;">
+                <span class="cart-total-label" id="cartShippingLabel">Livraison</span>
+                <span class="cart-total-price" id="cartShippingPrice">5,00 &euro;</span>
+            </div>
+            <div class="cart-total" style="border-top:1px solid var(--bg4);margin-top:6px;padding-top:8px;font-weight:700;">
                 <span class="cart-total-label">Total</span>
                 <span class="cart-total-price" id="cartTotal">0,00 &euro;</span>
             </div>
@@ -2840,10 +2848,10 @@
 
         footer.style.display = 'block';
 
-        var total = 0;
+        var subtotal = 0;
         var html = '';
         cart.forEach(function(item, index) {
-            total += item.price;
+            subtotal += item.price;
             var flocInfo = item.flocage ? ' | Flocage: ' + item.flocage_details : '';
             html += '<div class="cart-item">' +
                 '<img class="cart-item-img" src="' + item.imageUrl + '" onerror="handleImgError(this)">' +
@@ -2856,7 +2864,19 @@
             '</div>';
         });
 
+        var freeShipping = cart.length >= 3;
+        var shipping = freeShipping ? 0 : 5;
+        var total = subtotal + shipping;
+
         itemsContainer.innerHTML = html;
+        $('cartSubtotal').innerHTML = subtotal.toFixed(2).replace('.', ',') + ' &euro;';
+        if (freeShipping) {
+            $('cartShippingLabel').innerHTML = 'Livraison <span style="color:var(--neon);font-size:11px;">✓ OFFERTE</span>';
+            $('cartShippingPrice').innerHTML = '<span style="text-decoration:line-through;opacity:0.5;margin-right:4px;">5,00 &euro;</span><span style="color:var(--neon);">Gratuit</span>';
+        } else {
+            $('cartShippingLabel').innerHTML = 'Livraison <span style="color:var(--text2);font-size:11px;">(offerte dès 3 maillots)</span>';
+            $('cartShippingPrice').innerHTML = '5,00 &euro;';
+        }
         $('cartTotal').innerHTML = total.toFixed(2).replace('.', ',') + ' &euro;';
     }
 
@@ -3094,6 +3114,11 @@
                 quantity: 1
             };
         });
+
+        // Ajouter livraison si moins de 3 maillots
+        if (cart.length < 3) {
+            stripeItems.push({ name: 'Frais de livraison', price: 5, quantity: 1 });
+        }
 
         try {
             if (!supabaseClient) throw new Error('Supabase non disponible');
