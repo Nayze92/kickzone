@@ -2672,6 +2672,17 @@
         if (bsPage < maxPage) { bsPage++; updateBsPosition(); }
     });
 
+    // Touch swipe support for bestsellers on mobile
+    var bsTouchStartX = 0;
+    var bsTrackWrap = $('bsTrack').parentElement;
+    bsTrackWrap.addEventListener('touchstart', function(e) { bsTouchStartX = e.touches[0].clientX; }, { passive: true });
+    bsTrackWrap.addEventListener('touchend', function(e) {
+        var diff = bsTouchStartX - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 40) {
+            if (diff > 0) { $('bsNext').click(); } else { $('bsPrev').click(); }
+        }
+    }, { passive: true });
+
     // Adjust perPage on resize
     window.addEventListener('resize', function() {
         bsPerPage = window.innerWidth <= 768 ? 2 : window.innerWidth <= 1024 ? 4 : 6;
@@ -2721,6 +2732,19 @@
         carouselIndex = (carouselIndex + 1) % carouselImages.length;
         updateCarousel();
     });
+
+    // Touch swipe support for product image carousel on mobile
+    var modalTouchStartX = 0;
+    var modalImg = $('modalImg');
+    modalImg.addEventListener('touchstart', function(e) { modalTouchStartX = e.touches[0].clientX; }, { passive: true });
+    modalImg.addEventListener('touchend', function(e) {
+        var diff = modalTouchStartX - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 40) {
+            if (diff > 0) { carouselIndex = (carouselIndex + 1) % carouselImages.length; }
+            else { carouselIndex = (carouselIndex - 1 + carouselImages.length) % carouselImages.length; }
+            updateCarousel();
+        }
+    }, { passive: true });
 
     function openOrderModal(product) {
         currentProduct = product;
@@ -2971,13 +2995,15 @@
                         div.textContent = label;
                         div.onmouseenter = function() { div.style.background = 'var(--bg3)'; };
                         div.onmouseleave = function() { div.style.background = ''; };
-                        div.onclick = function() {
+                        var selectAddr = function() {
                             selectedAddress = label;
                             $('cartAddress').value = selectedAddress;
                             $('addressSelected').textContent = '✓ ' + selectedAddress;
                             $('addressSelected').style.display = 'block';
                             box.style.display = 'none';
                         };
+                        div.onclick = selectAddr;
+                        div.ontouchend = function(e) { e.preventDefault(); selectAddr(); };
                         box.appendChild(div);
                     });
                     box.style.display = 'block';
