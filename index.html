@@ -2332,6 +2332,31 @@
             <canvas id="adminChart" height="80"></canvas>
         </div>
 
+        <!-- FINANCES PERSO -->
+        <div style="padding:0 20px 20px;">
+            <div style="font-size:13px;color:var(--text2);margin-bottom:14px;font-weight:600;letter-spacing:1px;">💸 FINANCES PERSO</div>
+            <div style="background:var(--bg2);border:1px solid var(--bg4);border-radius:12px;padding:16px;margin-bottom:12px;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                    <select id="txPersonne" style="flex:1;min-width:100px;background:var(--bg);color:var(--text);border:1px solid var(--bg4);border-radius:8px;padding:10px;font-size:13px;">
+                        <option value="Bilal">Bilal</option>
+                        <option value="Slenchy">Slenchy</option>
+                    </select>
+                    <select id="txType" style="flex:1;min-width:120px;background:var(--bg);color:var(--text);border:1px solid var(--bg4);border-radius:8px;padding:10px;font-size:13px;">
+                        <option value="depense">Dépense</option>
+                        <option value="virement">Virement reçu</option>
+                        <option value="achat">Achat maillots</option>
+                    </select>
+                    <input id="txMontant" type="number" placeholder="Montant €" step="0.01" style="width:110px;background:var(--bg);color:var(--text);border:1px solid var(--bg4);border-radius:8px;padding:10px;font-size:13px;">
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <input id="txMotif" type="text" placeholder="Motif (ex: achat stock, virement Stripe...)" style="flex:1;background:var(--bg);color:var(--text);border:1px solid var(--bg4);border-radius:8px;padding:10px;font-size:13px;">
+                    <button onclick="addTransaction()" style="padding:10px 18px;background:var(--neon);color:#000;font-weight:800;border:none;border-radius:8px;cursor:pointer;font-size:13px;">+</button>
+                </div>
+            </div>
+            <div id="txSummary" style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;"></div>
+            <div id="txList"></div>
+        </div>
+
         <!-- COMMANDES -->
         <div style="padding:0 20px 20px;">
             <div style="font-size:13px;color:var(--text2);margin-bottom:14px;font-weight:600;letter-spacing:1px;">COMMANDES</div>
@@ -3407,6 +3432,7 @@
         if (result.error) { console.error(result.error); return; }
 
         window._adminOrders = orders;
+        loadTransactions();
 
         // Stats
         var totalRevenue = 0, totalOrders = orders.length;
@@ -3504,6 +3530,77 @@
     }
 
     // Update order status
+    // ============================================================
+    // TRANSACTIONS PERSO
+    // ============================================================
+    var typeLabels = { depense: 'Dépense', virement: 'Virement reçu', achat: 'Achat maillots' };
+    var typeColors = { depense: '#ff4444', virement: '#00ff88', achat: '#ffaa00' };
+
+    async function loadTransactions() {
+        if (!supabaseClient) return;
+        var { data } = await supabaseClient.from('transactions').select('*').order('created_at', { ascending: false });
+        if (!data) return;
+
+        // Summary par personne
+        var summary = {};
+        data.forEach(function(tx) {
+            if (!summary[tx.personne]) summary[tx.personne] = { depense: 0, virement: 0, achat: 0 };
+            summary[tx.personne][tx.type] = (summary[tx.personne][tx.type] || 0) + parseFloat(tx.montant);
+        });
+
+        var sumHtml = Object.keys(summary).map(function(p) {
+            var s = summary[p];
+            var total = (s.virement || 0) - (s.depense || 0) - (s.achat || 0);
+            return '<div style="background:var(--bg2);border:1px solid var(--bg4);border-radius:10px;padding:12px 16px;flex:1;min-width:150px;">' +
+                '<div style="font-weight:700;margin-bottom:8px;">' + p + '</div>' +
+                (s.virement ? '<div style="font-size:12px;color:#00ff88;">+' + s.virement.toFixed(2) + '€ reçu</div>' : '') +
+                (s.achat ? '<div style="font-size:12px;color:#ffaa00;">-' + s.achat.toFixed(2) + '€ maillots</div>' : '') +
+                (s.depense ? '<div style="font-size:12px;color:#ff4444;">-' + s.depense.toFixed(2) + '€ dépenses</div>' : '') +
+                '<div style="font-size:13px;font-weight:700;margin-top:6px;color:' + (total >= 0 ? '#00ff88' : '#ff4444') + ';">Solde: ' + (total >= 0 ? '+' : '') + total.toFixed(2) + '€</div>' +
+            '</div>';
+        }).join('');
+        $('txSummary').innerHTML = sumHtml;
+
+        // Liste
+        $('txList').innerHTML = data.map(function(tx) {
+            var date = new Date(tx.created_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' });
+            var color = typeColors[tx.type] || '#fff';
+            var sign = tx.type === 'virement' ? '+' : '-';
+            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg3);">' +
+                '<div>' +
+                    '<span style="background:' + color + '22;color:' + color + ';border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;margin-right:8px;">' + tx.personne + '</span>' +
+                    '<span style="font-size:13px;">' + (tx.motif || typeLabels[tx.type] || tx.type) + '</span>' +
+                    '<span style="font-size:11px;color:var(--text2);margin-left:8px;">' + date + '</span>' +
+                '</div>' +
+                '<div style="display:flex;align-items:center;gap:10px;">' +
+                    '<span style="font-weight:700;color:' + color + ';">' + sign + parseFloat(tx.montant).toFixed(2) + '€</span>' +
+                    '<button onclick="deleteTransaction(' + tx.id + ')" style="background:none;border:none;color:#ff4444;font-size:16px;cursor:pointer;">×</button>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    window.addTransaction = async function() {
+        var personne = $('txPersonne').value;
+        var type = $('txType').value;
+        var montant = parseFloat($('txMontant').value);
+        var motif = $('txMotif').value.trim();
+        if (!montant || montant <= 0) { showToast('Montant invalide'); return; }
+        var { error } = await supabaseClient.from('transactions').insert({ personne, type, montant, motif });
+        if (error) { showToast('Erreur: ' + error.message); return; }
+        $('txMontant').value = '';
+        $('txMotif').value = '';
+        showToast('Transaction ajoutée !');
+        loadTransactions();
+    };
+
+    window.deleteTransaction = async function(id) {
+        if (!confirm('Supprimer cette transaction ?')) return;
+        await supabaseClient.from('transactions').delete().eq('id', id);
+        showToast('Supprimée !');
+        loadTransactions();
+    };
+
     window.updateOrderStatus = async function(orderId, newStatus) {
         if (!supabaseClient) return;
         var { error } = await supabaseClient.from('orders').update({ status: newStatus }).eq('id', String(orderId));
