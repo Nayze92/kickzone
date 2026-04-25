@@ -3679,9 +3679,20 @@
         adminGlobeInstance = g;
     }
 
+    // AudioContext global — créé une fois au premier clic pour contourner la politique autoplay
+    var _audioCtx = null;
+    document.addEventListener('click', function initAudio() {
+        if (!_audioCtx) {
+            try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+        }
+        if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume();
+    }, { once: false });
+
     function playChaChingSound() {
         try {
-            var ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (_audioCtx.state === 'suspended') _audioCtx.resume();
+            var ctx = _audioCtx;
             function note(freq, t, dur, vol) {
                 var o = ctx.createOscillator(), g = ctx.createGain();
                 o.connect(g); g.connect(ctx.destination);
@@ -3693,11 +3704,10 @@
                 o.start(ctx.currentTime + t);
                 o.stop(ctx.currentTime + t + dur + 0.05);
             }
-            note(600, 0,    0.06, 0.35);
-            note(900, 0.06, 0.06, 0.35);
-            note(1200,0.12, 0.06, 0.35);
-            note(1600,0.18, 0.12, 0.45);
-            // Ching finale — son de clochette
+            note(600,  0,    0.06, 0.35);
+            note(900,  0.06, 0.06, 0.35);
+            note(1200, 0.12, 0.06, 0.35);
+            note(1600, 0.18, 0.12, 0.45);
             var o2 = ctx.createOscillator(), g2 = ctx.createGain();
             o2.connect(g2); g2.connect(ctx.destination);
             o2.type = 'sine';
@@ -3706,7 +3716,7 @@
             g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.4);
             o2.start(ctx.currentTime + 0.28);
             o2.stop(ctx.currentTime + 1.5);
-        } catch(e) {}
+        } catch(e) { console.warn('Audio error:', e); }
     }
 
     function showSaleNotification(order) {
