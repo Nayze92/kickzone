@@ -3612,7 +3612,7 @@
         adminGlobePoints = [];
         orders.forEach(function(o) {
             var coords = getOrderCoords(o);
-            if (coords) adminGlobePoints.push({ lat: coords.lat, lng: coords.lng, size: 0.5, color: '#00FF00', name: o.customer_name || '' });
+            if (coords) adminGlobePoints.push({ lat: coords.lat, lng: coords.lng, weight: 1, name: o.customer_name || '' });
         });
 
         el.innerHTML = '';
@@ -3620,21 +3620,26 @@
             .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-dark.jpg')
             .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
             .backgroundColor('rgba(0,0,0,0)')
-            .atmosphereColor('#00cc00')
-            .atmosphereAltitude(0.15)
-            .pointsData(adminGlobePoints)
-            .pointLat('lat')
-            .pointLng('lng')
-            .pointColor('color')
-            .pointAltitude(0.06)
-            .pointRadius('size')
-            .pointLabel('name')
+            .atmosphereColor('#00FF00')
+            .atmosphereAltitude(0.12)
+            .hexBinPointsData(adminGlobePoints)
+            .hexBinPointLat('lat')
+            .hexBinPointLng('lng')
+            .hexBinPointWeight('weight')
+            .hexBinResolution(3)
+            .hexAltitude(function(d) { return 0.02 + d.sumWeight * 0.04; })
+            .hexTopColor(function() { return '#00FF00'; })
+            .hexSideColor(function() { return 'rgba(0,180,0,0.5)'; })
+            .hexLabel(function(d) { return d.sumWeight + ' commande' + (d.sumWeight > 1 ? 's' : ''); })
             (el);
 
-        adminGlobeInstance.pointOfView({ lat: 46.5, lng: 2.3, altitude: 2.2 });
-        adminGlobeInstance.controls().autoRotate = true;
-        adminGlobeInstance.controls().autoRotateSpeed = 0.4;
-        adminGlobeInstance.controls().enableZoom = true;
+        // Centrer sur la France avec délai pour attendre le rendu
+        setTimeout(function() {
+            adminGlobeInstance.pointOfView({ lat: 46.5, lng: 2.3, altitude: 1.8 }, 1000);
+            adminGlobeInstance.controls().autoRotate = true;
+            adminGlobeInstance.controls().autoRotateSpeed = 0.3;
+            adminGlobeInstance.controls().enableZoom = true;
+        }, 200);
     }
 
     function playChaChingSound() {
@@ -3676,17 +3681,16 @@
         notif.style.display = 'block';
         setTimeout(function() { notif.style.display = 'none'; }, 4000);
 
-        // Point clignotant sur le globe
+        // Ajouter le point sur le globe
         if (adminGlobeInstance) {
             var coords = getOrderCoords(order);
             if (coords) {
-                var pt = { lat: coords.lat, lng: coords.lng, size: 1.5, color: '#ffffff', name: order.customer_name || '' };
-                adminGlobePoints.push(pt);
-                adminGlobeInstance.pointsData(adminGlobePoints.slice());
+                adminGlobePoints.push({ lat: coords.lat, lng: coords.lng, weight: 3, name: order.customer_name || '' });
+                adminGlobeInstance.hexBinPointsData(adminGlobePoints.slice());
                 setTimeout(function() {
-                    pt.size = 0.5; pt.color = '#00FF00';
-                    adminGlobeInstance.pointsData(adminGlobePoints.slice());
-                }, 2000);
+                    adminGlobePoints[adminGlobePoints.length - 1].weight = 1;
+                    adminGlobeInstance.hexBinPointsData(adminGlobePoints.slice());
+                }, 3000);
             }
         }
     }
