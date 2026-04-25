@@ -2324,14 +2324,14 @@
         </div>
 
         <!-- GLOBE COMMANDES EN DIRECT -->
-        <div id="adminGlobeWrap" style="position:relative;margin:0 20px 20px;background:var(--bg2);border:1px solid var(--bg4);border-radius:16px;overflow:hidden;">
-            <div style="position:absolute;top:16px;left:16px;z-index:10;font-size:13px;color:var(--text2);font-weight:600;letter-spacing:1px;">🌍 COMMANDES EN DIRECT</div>
-            <div id="adminGlobeEl" style="width:100%;height:380px;"></div>
-            <div id="saleNotif" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);border:2px solid var(--neon);border-radius:20px;padding:28px 40px;text-align:center;z-index:20;min-width:260px;box-shadow:0 0 40px rgba(0,255,0,0.3);">
-                <div style="font-size:42px;margin-bottom:10px;">💰</div>
-                <div style="font-size:26px;font-weight:900;color:var(--neon);letter-spacing:1px;" id="saleNotifAmount"></div>
-                <div style="font-size:14px;color:var(--text2);margin-top:6px;" id="saleNotifName"></div>
+        <div id="adminGlobeWrap" style="position:relative;margin:0 20px 20px;background:#000814;border:1px solid var(--bg4);border-radius:16px;overflow:hidden;display:flex;justify-content:center;align-items:center;min-height:520px;">
+            <div style="position:absolute;top:16px;left:16px;z-index:10;font-size:13px;color:rgba(0,255,150,0.8);font-weight:600;letter-spacing:2px;">🌍 COMMANDES EN DIRECT</div>
+            <div id="saleNotif" style="display:none;position:absolute;top:20px;right:20px;background:rgba(0,0,0,0.92);border:2px solid var(--neon);border-radius:16px;padding:20px 28px;text-align:center;z-index:20;min-width:220px;box-shadow:0 0 40px rgba(0,255,0,0.4);">
+                <div style="font-size:36px;margin-bottom:8px;">💰</div>
+                <div style="font-size:24px;font-weight:900;color:var(--neon);letter-spacing:1px;" id="saleNotifAmount"></div>
+                <div style="font-size:13px;color:var(--text2);margin-top:4px;" id="saleNotifName"></div>
             </div>
+            <div id="adminGlobeEl" style="width:520px;height:520px;max-width:100%;"></div>
         </div>
 
         <!-- STATS -->
@@ -3617,31 +3617,53 @@
         });
 
         el.innerHTML = '';
+
+        // Arcs : Paris → chaque commande (style Shopify BFCM)
+        var PARIS = { lat: 48.86, lng: 2.35 };
+        var arcsData = adminGlobePoints.map(function(pt) {
+            return { startLat: PARIS.lat, startLng: PARIS.lng, endLat: pt.lat, endLng: pt.lng };
+        });
+
         var g = Globe()(el);
         adminGlobeInstance = g;
 
         g.globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
-         .backgroundColor('rgba(0,0,0,0)')
-         .atmosphereColor('#00FF00')
-         .atmosphereAltitude(0.12)
+         .backgroundColor('#000814')
+         .atmosphereColor('#00ff88')
+         .atmosphereAltitude(0.25)
+         // Dots jaunes (style Shopify)
          .pointsData(adminGlobePoints)
          .pointLat('lat')
          .pointLng('lng')
-         .pointColor(function() { return '#00FF00'; })
+         .pointColor(function() { return '#ffdd00'; })
          .pointAltitude(0.04)
-         .pointRadius(0.35)
+         .pointRadius(0.5)
          .pointLabel('name')
+         // Rings pulsants
          .ringsData(adminGlobePoints)
          .ringLat('lat')
          .ringLng('lng')
-         .ringColor(function() { return function(t) { return 'rgba(0,255,0,' + (1 - t) + ')'; }; })
-         .ringMaxRadius(4)
+         .ringColor(function() { return function(t) { return 'rgba(255,221,0,' + (1 - t) + ')'; }; })
+         .ringMaxRadius(3)
          .ringPropagationSpeed(2)
-         .ringRepeatPeriod(1200)
+         .ringRepeatPeriod(900)
+         // Arcs animés Paris → commandes (style Shopify)
+         .arcsData(arcsData)
+         .arcStartLat('startLat')
+         .arcStartLng('startLng')
+         .arcEndLat('endLat')
+         .arcEndLng('endLng')
+         .arcColor(function() { return ['rgba(0,255,136,0.9)', 'rgba(0,255,136,0)']; })
+         .arcAltitude(0.2)
+         .arcStroke(0.5)
+         .arcDashLength(0.4)
+         .arcDashGap(0.2)
+         .arcDashAnimateTime(2500)
+         // Centrage France au chargement
          .onGlobeReady(function() {
-             g.pointOfView({ lat: 46.5, lng: 2.3, altitude: 1.8 }, 0);
+             g.pointOfView({ lat: 46.5, lng: 2.3, altitude: 1.5 }, 800);
              g.controls().autoRotate = true;
-             g.controls().autoRotateSpeed = 0.4;
+             g.controls().autoRotateSpeed = 0.35;
          });
     }
 
@@ -3684,13 +3706,18 @@
         notif.style.display = 'block';
         setTimeout(function() { notif.style.display = 'none'; }, 4000);
 
-        // Ajouter le point sur le globe
+        // Ajouter le point + arc sur le globe
         if (adminGlobeInstance) {
             var coords = getOrderCoords(order);
             if (coords) {
+                var PARIS = { lat: 48.86, lng: 2.35 };
                 adminGlobePoints.push({ lat: coords.lat, lng: coords.lng, name: order.customer_name || 'Commande' });
                 adminGlobeInstance.pointsData(adminGlobePoints.slice());
                 adminGlobeInstance.ringsData(adminGlobePoints.slice());
+                var arcs = adminGlobePoints.map(function(pt) {
+                    return { startLat: PARIS.lat, startLng: PARIS.lng, endLat: pt.lat, endLng: pt.lng };
+                });
+                adminGlobeInstance.arcsData(arcs);
             }
         }
     }
