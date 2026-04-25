@@ -3676,16 +3676,19 @@
     }
 
     // ============================================================
-    // AUDIO — son original YouTube via R2
+    // AUDIO — son Shopify exact, superposition possible
     // ============================================================
-    var _chaChingAudio = new Audio('https://images.kickzones.uk/chaching.mp3');
-    _chaChingAudio.preload = 'auto';
-    _chaChingAudio.volume = 1.0;
+    var NOTIF_SOUND_URL = 'https://images.kickzones.uk/notif.mp3';
+    // Précharger en cache
+    var _preloadAudio = new Audio(NOTIF_SOUND_URL);
+    _preloadAudio.preload = 'auto';
 
     function playChaChingSound() {
         try {
-            _chaChingAudio.currentTime = 0;
-            _chaChingAudio.play().catch(function(e) { console.warn('Audio:', e); });
+            // Nouvelle instance à chaque fois = superposition sans coupure
+            var a = new Audio(NOTIF_SOUND_URL);
+            a.volume = 1.0;
+            a.play().catch(function(e) { console.warn('Audio:', e); });
         } catch(e) {}
     }
 
