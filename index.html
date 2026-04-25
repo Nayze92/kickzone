@@ -3616,8 +3616,6 @@
         if (!el || typeof Globe === 'undefined') return;
 
         adminGlobePoints = [];
-        // Point de test : Lyon (vérifie que les coords sont bonnes)
-        adminGlobePoints.push({ lat: 45.76, lng: 4.84, name: '🧪 Lyon test' });
         orders.forEach(function(o) {
             var coords = getOrderCoords(o);
             if (coords) adminGlobePoints.push({ lat: coords.lat, lng: coords.lng, name: o.customer_name || 'Commande' });
@@ -3678,72 +3676,17 @@
     }
 
     // ============================================================
-    // AUDIO — pre-rendu cha-ching réaliste
+    // AUDIO — son original YouTube via R2
     // ============================================================
-    var _audioCtx = null;
-    var _chaChingBuffer = null;
-
-    document.addEventListener('click', function() {
-        if (!_audioCtx) {
-            try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); preloadChaChingBuffer(); } catch(e) {}
-        }
-        if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume();
-    }, { once: false });
-
-    async function preloadChaChingBuffer() {
-        try {
-            var sr = 44100, dur = 2.0;
-            var off = new OfflineAudioContext(1, Math.ceil(sr * dur), sr);
-
-            function noise(start, length, filterHz, q, gain) {
-                var len = Math.ceil(sr * length);
-                var buf = off.createBuffer(1, len, sr);
-                var d = buf.getChannelData(0);
-                for (var i = 0; i < len; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 4);
-                var s = off.createBufferSource(); s.buffer = buf;
-                var f = off.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = filterHz; f.Q.value = q;
-                var g = off.createGain(); g.gain.setValueAtTime(gain, start); g.gain.exponentialRampToValueAtTime(0.001, start + length);
-                s.connect(f); f.connect(g); g.connect(off.destination); s.start(start);
-            }
-
-            function tone(freq, start, amp, decay, type) {
-                var o = off.createOscillator(); o.type = type || 'sine';
-                o.frequency.setValueAtTime(freq, start);
-                var g = off.createGain();
-                g.gain.setValueAtTime(amp, start);
-                g.gain.exponentialRampToValueAtTime(0.0001, start + decay);
-                o.connect(g); g.connect(off.destination);
-                o.start(start); o.stop(start + decay + 0.05);
-            }
-
-            // "Ka" — impact mécanique
-            noise(0,    0.05, 300,  1.5, 0.9);
-            noise(0,    0.08, 1200, 2.0, 0.7);
-            noise(0.04, 0.06, 800,  1.0, 0.5);
-
-            // "Ching" — clochette de caisse enregistreuse
-            tone(1760, 0.05, 0.9, 1.6);   // A6 — son principal
-            tone(3520, 0.05, 0.4, 1.1);   // A7 — harmonique
-            tone(2640, 0.05, 0.3, 0.9);   // E7
-            tone(1320, 0.05, 0.25, 0.7);  // E6
-            tone(4400, 0.02, 0.35, 0.06); // transitoire attaque
-            tone(880,  0.05, 0.2,  0.5);  // sub harmonique
-
-            _chaChingBuffer = await off.startRendering();
-        } catch(e) { console.warn('Sound preload:', e); }
-    }
+    var _chaChingAudio = new Audio('https://images.kickzones.uk/chaching.webm');
+    _chaChingAudio.preload = 'auto';
+    _chaChingAudio.volume = 1.0;
 
     function playChaChingSound() {
         try {
-            if (!_audioCtx) { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); preloadChaChingBuffer(); }
-            if (_audioCtx.state === 'suspended') _audioCtx.resume();
-            if (!_chaChingBuffer) return;
-            var src = _audioCtx.createBufferSource();
-            src.buffer = _chaChingBuffer;
-            var g = _audioCtx.createGain(); g.gain.value = 1.0;
-            src.connect(g); g.connect(_audioCtx.destination);
-            src.start();
-        } catch(e) { console.warn('Audio play:', e); }
+            _chaChingAudio.currentTime = 0;
+            _chaChingAudio.play().catch(function(e) { console.warn('Audio:', e); });
+        } catch(e) {}
     }
 
     function showSaleNotification(order) {
