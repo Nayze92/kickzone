@@ -3596,13 +3596,14 @@
 
     function getOrderCoords(order) {
         var addr = order.address || '';
-        var m = addr.match(/(\d{5})/);
+        var m = addr.match(/\b(\d{5})\b/);
         if (m) {
             var dept = m[1].substring(0, 2);
             var c = DEPT_COORDS[dept];
-            if (c) return { lat: c.lat + (Math.random()-0.5)*0.4, lng: c.lng + (Math.random()-0.5)*0.4 };
+            if (c) return { lat: c.lat + (Math.random()-0.5)*0.15, lng: c.lng + (Math.random()-0.5)*0.15 };
         }
-        return null;
+        // Fallback Paris
+        return { lat: 48.86 + (Math.random()-0.5)*0.1, lng: 2.35 + (Math.random()-0.5)*0.1 };
     }
 
     function initAdminGlobe(orders) {
@@ -3612,34 +3613,36 @@
         adminGlobePoints = [];
         orders.forEach(function(o) {
             var coords = getOrderCoords(o);
-            if (coords) adminGlobePoints.push({ lat: coords.lat, lng: coords.lng, weight: 1, name: o.customer_name || '' });
+            if (coords) adminGlobePoints.push({ lat: coords.lat, lng: coords.lng, name: o.customer_name || 'Commande' });
         });
 
         el.innerHTML = '';
-        adminGlobeInstance = Globe()
-            .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-dark.jpg')
-            .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
-            .backgroundColor('rgba(0,0,0,0)')
-            .atmosphereColor('#00FF00')
-            .atmosphereAltitude(0.12)
-            .hexBinPointsData(adminGlobePoints)
-            .hexBinPointLat('lat')
-            .hexBinPointLng('lng')
-            .hexBinPointWeight('weight')
-            .hexBinResolution(3)
-            .hexAltitude(function(d) { return 0.02 + d.sumWeight * 0.04; })
-            .hexTopColor(function() { return '#00FF00'; })
-            .hexSideColor(function() { return 'rgba(0,180,0,0.5)'; })
-            .hexLabel(function(d) { return d.sumWeight + ' commande' + (d.sumWeight > 1 ? 's' : ''); })
-            (el);
+        var g = Globe()(el);
+        adminGlobeInstance = g;
 
-        // Centrer sur la France avec délai pour attendre le rendu
-        setTimeout(function() {
-            adminGlobeInstance.pointOfView({ lat: 46.5, lng: 2.3, altitude: 1.8 }, 1000);
-            adminGlobeInstance.controls().autoRotate = true;
-            adminGlobeInstance.controls().autoRotateSpeed = 0.3;
-            adminGlobeInstance.controls().enableZoom = true;
-        }, 200);
+        g.globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+         .backgroundColor('rgba(0,0,0,0)')
+         .atmosphereColor('#00FF00')
+         .atmosphereAltitude(0.12)
+         .pointsData(adminGlobePoints)
+         .pointLat('lat')
+         .pointLng('lng')
+         .pointColor(function() { return '#00FF00'; })
+         .pointAltitude(0.04)
+         .pointRadius(0.35)
+         .pointLabel('name')
+         .ringsData(adminGlobePoints)
+         .ringLat('lat')
+         .ringLng('lng')
+         .ringColor(function() { return function(t) { return 'rgba(0,255,0,' + (1 - t) + ')'; }; })
+         .ringMaxRadius(4)
+         .ringPropagationSpeed(2)
+         .ringRepeatPeriod(1200)
+         .onGlobeReady(function() {
+             g.pointOfView({ lat: 46.5, lng: 2.3, altitude: 1.8 }, 0);
+             g.controls().autoRotate = true;
+             g.controls().autoRotateSpeed = 0.4;
+         });
     }
 
     function playChaChingSound() {
@@ -3685,12 +3688,9 @@
         if (adminGlobeInstance) {
             var coords = getOrderCoords(order);
             if (coords) {
-                adminGlobePoints.push({ lat: coords.lat, lng: coords.lng, weight: 3, name: order.customer_name || '' });
-                adminGlobeInstance.hexBinPointsData(adminGlobePoints.slice());
-                setTimeout(function() {
-                    adminGlobePoints[adminGlobePoints.length - 1].weight = 1;
-                    adminGlobeInstance.hexBinPointsData(adminGlobePoints.slice());
-                }, 3000);
+                adminGlobePoints.push({ lat: coords.lat, lng: coords.lng, name: order.customer_name || 'Commande' });
+                adminGlobeInstance.pointsData(adminGlobePoints.slice());
+                adminGlobeInstance.ringsData(adminGlobePoints.slice());
             }
         }
     }
