@@ -3505,6 +3505,8 @@
             var statusColor = statusColors[status] || '#ffaa00';
             var statusOptions = Object.keys(statusLabels).map(function(k){ return '<option value="'+k+'"'+(k===status?' selected':'')+'>'+statusLabels[k]+'</option>'; }).join('');
             var img = findProductImg(o);
+            var tracking = o.tracking_number || '';
+            var hasEmail = o.email && o.email.length > 0;
 
             return '<div style="background:var(--bg2);border:1px solid var(--bg4);border-radius:12px;padding:16px;margin-bottom:12px;">' +
                 '<div style="display:flex;gap:14px;align-items:flex-start;">' +
@@ -3518,6 +3520,12 @@
                         '<div style="font-size:12px;color:var(--text2);margin-bottom:4px;">' + (o.phone || '') + '</div>' +
                         '<div style="font-size:12px;color:var(--text2);margin-bottom:8px;">' + (o.address || '') + '</div>' +
                         '<div style="font-size:12px;color:var(--text);margin-bottom:10px;">' + articlesHTML + '</div>' +
+                        // Numéro de suivi
+                        '<div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">' +
+                            '<input id="tracking_'+o.id+'" type="text" value="'+tracking+'" placeholder="Numéro de suivi..." style="flex:1;background:var(--bg);color:var(--text);border:1px solid '+(tracking?'var(--neon)':'var(--bg4)')+';border-radius:6px;padding:8px 12px;font-size:13px;font-family:monospace;letter-spacing:1px;">' +
+                            '<button onclick="sendTracking(\''+o.id+'\')" style="padding:8px 14px;background:'+(hasEmail?'rgba(0,255,136,0.15)':'rgba(100,100,100,0.1)')+';border:1px solid '+(hasEmail?'#00ff88':'#555')+';color:'+(hasEmail?'#00ff88':'#555')+';border-radius:6px;font-size:12px;font-weight:700;cursor:'+(hasEmail?'pointer':'not-allowed')+';white-space:nowrap;" '+(hasEmail?'':'title="Pas d\'email pour cette commande"')+'>📧 '+(tracking ? 'Renvoyer' : 'Envoyer')+'</button>' +
+                        '</div>' +
+                        (tracking ? '<div style="font-size:11px;color:#00ff88;margin-bottom:8px;">✅ Suivi envoyé : <span style="font-family:monospace;">' + tracking + '</span></div>' : '') +
                         '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
                             '<select onchange="updateOrderStatus(\''+o.id+'\', this.value)" style="background:var(--bg);color:var(--text);border:1px solid var(--bg4);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;">' + statusOptions + '</select>' +
                             '<button onclick="openSupplierModal(\''+o.id+'\')" style="padding:6px 12px;background:rgba(0,255,0,0.1);border:1px solid var(--neon);color:var(--neon);border-radius:6px;font-size:12px;cursor:pointer;">📋 Fournisseur</button>' +
@@ -3831,6 +3839,35 @@
         } else {
             showToast('Commande supprimee !');
             showAdminDashboard();
+        }
+    };
+
+    window.sendTracking = async function(orderId) {
+        var input = document.getElementById('tracking_' + orderId);
+        if (!input) return;
+        var tracking = input.value.trim();
+        if (!tracking) { showToast('Entre un numéro de suivi !'); input.focus(); return; }
+        if (!supabaseClient) return;
+
+        var btn = input.nextElementSibling;
+        var origText = btn.textContent;
+        btn.textContent = '⏳ Envoi...';
+        btn.disabled = true;
+
+        var { error } = await supabaseClient.rpc('send_tracking_email', {
+            p_order_id: String(orderId),
+            p_tracking: tracking
+        });
+
+        if (error) {
+            showToast('Erreur: ' + error.message);
+            btn.textContent = origText;
+            btn.disabled = false;
+        } else {
+            showToast('📧 Email de suivi envoyé !');
+            input.style.borderColor = 'var(--neon)';
+            btn.textContent = '✅ Envoyé';
+            setTimeout(showAdminDashboard, 1200);
         }
     };
 
