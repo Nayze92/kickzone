@@ -3181,28 +3181,35 @@
         btn.disabled = true;
         btn.innerHTML = '<span class="loading-spinner"></span>Redirection vers Stripe...';
 
-        // Build items for Stripe
-        var stripeItems = cart.map(function(item) {
-            var itemName = item.product_name;
-            if (item.size) itemName += ' (Taille: ' + item.size + ')';
-            if (item.flocage && item.flocage_details) itemName += ' [Flocage: ' + item.flocage_details + ']';
+        // Build items for Stripe — noms génériques (aucune marque/club visible)
+        var stripeItems = cart.map(function(item, idx) {
+            var genericName = item.flocage ? 'Maillot Football Personnalisé' : 'Maillot Football Premium';
+            if (item.size) genericName += ' — Taille ' + item.size;
+            if (item.flocage && item.flocage_details) genericName += ' / Flocage inclus';
             return {
-                name: itemName,
+                name: genericName,
                 price: item.price,
-                quantity: 1
+                quantity: 1,
+                // Garder le vrai nom en interne dans les métadonnées commande
+                _real_name: item.product_name
             };
         });
 
         // Ajouter livraison si moins de 3 maillots
         if (cart.length < 3) {
-            stripeItems.push({ name: 'Frais de livraison', price: 5, quantity: 1 });
+            stripeItems.push({ name: 'Livraison', price: 5, quantity: 1 });
         }
 
         try {
             if (!supabaseClient) throw new Error('Supabase non disponible');
 
+            // Nettoyer les champs internes avant envoi à Stripe
+            var stripeItemsClean = stripeItems.map(function(it) {
+                return { name: it.name, price: it.price, quantity: it.quantity };
+            });
+
             var { data, error } = await supabaseClient.rpc('create_checkout_session', {
-                p_items: stripeItems,
+                p_items: stripeItemsClean,
                 p_customer_name: name,
                 p_phone: phone,
                 p_address: address,
@@ -3211,6 +3218,13 @@
             if (error) throw error;
             if (data && data.error) throw new Error(data.error);
             if (data && data.url) {
+                // Remettre les vrais noms dans Supabase (pas visibles par Stripe)
+                if (data.order_id) {
+                    var realItems = stripeItems.map(function(it) {
+                        return { name: it._real_name || it.name, price: it.price, quantity: it.quantity };
+                    });
+                    supabaseClient.from('orders').update({ items: realItems }).eq('id', data.order_id).then(function() {});
+                }
                 // Sauvegarder le récap pour la page de confirmation
                 var recap = {
                     name: name,
